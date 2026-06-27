@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     if (!error && user) {
       // Query the database to check the user's role
       const { data: customer } = await supabase
-        .from('customers_shop')
+        .from('users_shop')
         .select('role')
         .eq('id', user.id)
         .single();

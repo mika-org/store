@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SlidersHorizontal, Search, ShoppingBag } from 'lucide-react';
+import { SortSelect, PriceFilter } from '@/components/shop-filters';
 
 export const dynamic = 'force-dynamic';
 const ITEMS_PER_PAGE = 8;
@@ -104,7 +105,12 @@ export default async function ShopPage({
       }
 
       if (filters.category) {
-        query = query.filter('categories_shop.slug', 'eq', filters.category);
+        const cat = categories.find(c => c.slug === filters.category);
+        if (cat) {
+          query = query.eq('category_id', cat.id);
+        } else {
+          query = query.eq('category_id', '00000000-0000-0000-0000-000000000000');
+        }
       }
 
       if (filters.gender) {
@@ -259,19 +265,7 @@ export default async function ShopPage({
         {/* Sort selector */}
         <div className="flex items-center space-x-2">
           <label htmlFor="sort" className="text-xs font-semibold text-muted-foreground uppercase">Sort By</label>
-          <select
-            id="sort"
-            value={filters.sort || 'newest'}
-            onChange={(e) => {
-              // Construct redirection client-side via simple server side navigation
-              window.location.href = createQueryString('sort', e.target.value);
-            }}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-none"
-          >
-            <option value="newest">Newest</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-          </select>
+          <SortSelect currentSort={filters.sort || 'newest'} />
         </div>
       </div>
 
@@ -362,47 +356,10 @@ export default async function ShopPage({
           <hr className="border-border" />
 
           {/* Price Range Filter */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Price Range</h3>
-            <div className="flex items-center space-x-2">
-              <input
-                type="number"
-                placeholder="Min Rp"
-                id="minPriceInput"
-                defaultValue={filters.minPrice || ''}
-                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs focus:outline-none"
-              />
-              <span className="text-xs text-muted-foreground">to</span>
-              <input
-                type="number"
-                placeholder="Max Rp"
-                id="maxPriceInput"
-                defaultValue={filters.maxPrice || ''}
-                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs focus:outline-none"
-              />
-            </div>
-            <Button
-              size="sm"
-              className="w-full mt-2 text-xs"
-              onClick={() => {
-                // Client-side retrieve values from input fields and reload page
-                const minVal = (document.getElementById('minPriceInput') as HTMLInputElement)?.value;
-                const maxVal = (document.getElementById('maxPriceInput') as HTMLInputElement)?.value;
-                
-                const url = new URL(window.location.href);
-                if (minVal) url.searchParams.set('minPrice', minVal);
-                else url.searchParams.delete('minPrice');
-                
-                if (maxVal) url.searchParams.set('maxPrice', maxVal);
-                else url.searchParams.delete('maxPrice');
-                
-                url.searchParams.set('page', '1');
-                window.location.href = url.pathname + url.search;
-              }}
-            >
-              Apply Price
-            </Button>
-          </div>
+          <PriceFilter
+            initialMinPrice={filters.minPrice?.toString()}
+            initialMaxPrice={filters.maxPrice?.toString()}
+          />
         </div>
 
         {/* Products Grid Section */}

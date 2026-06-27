@@ -2,24 +2,14 @@
 
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { getSessionUser } from './auth';
 
 export async function updateOrderStatus(orderId: string, status: 'Pending' | 'Paid' | 'Packed' | 'Shipped' | 'Completed' | 'Cancelled') {
   try {
+    const user = await getSessionUser();
+    if (!user || user.role !== 'admin') return { success: false, error: 'Unauthorized' };
+
     const supabase = await createServerSupabaseClient();
-
-    // Verify admin
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
-
-    const { data: customer } = await supabase
-      .from('customers_shop')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (customer?.role !== 'admin') {
-      return { success: false, error: 'Unauthorized' };
-    }
 
     // Update order status
     const { error } = await supabase
@@ -39,21 +29,10 @@ export async function updateOrderStatus(orderId: string, status: 'Pending' | 'Pa
 
 export async function verifyPayment(orderId: string, approved: boolean) {
   try {
+    const user = await getSessionUser();
+    if (!user || user.role !== 'admin') return { success: false, error: 'Unauthorized' };
+
     const supabase = await createServerSupabaseClient();
-
-    // Verify admin
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
-
-    const { data: customer } = await supabase
-      .from('customers_shop')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (customer?.role !== 'admin') {
-      return { success: false, error: 'Unauthorized' };
-    }
 
     const paymentStatus = approved ? 'Paid' : 'Unpaid';
     const orderStatus = approved ? 'Paid' : 'Cancelled';

@@ -1,45 +1,27 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export default async function proxy(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+  const response = NextResponse.next();
+  const pathname = request.nextUrl.pathname;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Get session user from custom cookie
+  const sessionCookie = request.cookies.get('user_session')?.value;
+  let user: any = null;
 
-  // If Supabase variables are not set yet, skip routing logic
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return response;
+  if (sessionCookie) {
+    try {
+      let decoded = decodeURIComponent(sessionCookie);
+      if (decoded.startsWith('"') && decoded.endsWith('"')) {
+        decoded = decoded.slice(1, -1);
+      }
+      user = JSON.parse(decoded);
+    } catch (e) {
+      // Ignored
+    }
   }
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({
-          request,
-        });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
-        );
-      },
-    },
-  });
-
-  // Get session user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
+  console.log(`[Middleware] Path: ${pathname}, HasCookie: ${!!sessionCookie}, UserRole: ${user?.role || 'None'}`);
 
   // 1. Admin route protection
   if (pathname.startsWith('/admin')) {
@@ -49,22 +31,8 @@ export default async function proxy(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
-    // Check user role from metadata or fallback to database query
-    let isAdmin = user.user_metadata?.role === 'admin';
-
+    const isAdmin = user.role === 'admin';
     if (!isAdmin) {
-      // Fallback query to customers table
-      const { data: customer } = await supabase
-        .from('customers_shop')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      isAdmin = customer?.role === 'admin';
-    }
-
-    if (!isAdmin) {
-      // If user is not admin, redirect to home page
       return NextResponse.redirect(new URL('/', request.url));
     }
   }
@@ -84,20 +52,10 @@ export default async function proxy(request: NextRequest) {
   // 3. Prevent authenticated users from visiting auth pages
   const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
+  const isRscRequest = request.nextUrl.searchParams.has('_rsc');
 
-  if (isAuthRoute && user) {
-    let isAdmin = user.user_metadata?.role === 'admin';
-
-    if (!isAdmin) {
-      const { data: customer } = await supabase
-        .from('customers_shop')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      isAdmin = customer?.role === 'admin';
-    }
-
+  if (isAuthRoute && user && !isRscRequest) {
+    const isAdmin = user.role === 'admin';
     if (isAdmin) {
       return NextResponse.redirect(new URL('/admin', request.url));
     }

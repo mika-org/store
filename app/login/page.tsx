@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createClient } from '@/lib/supabase';
+import { loginUser } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -25,7 +25,7 @@ function LoginPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const supabase = createClient();
+
   const redirectedFrom = searchParams.get('redirectedFrom') || '';
 
   const {
@@ -41,32 +41,20 @@ function LoginPageContent() {
     setErrorMsg(null);
 
     try {
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      const res = await loginUser(data);
 
-      if (error) {
-        throw new Error(error.message);
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to sign in.');
       }
 
-      if (authData.user) {
-        // Query user role to decide redirect
-        const { data: customer } = await supabase
-          .from('customers_shop')
-          .select('role')
-          .eq('id', authData.user.id)
-          .single();
-
-        if (redirectedFrom) {
-          router.push(redirectedFrom);
-        } else if (customer?.role === 'admin' || authData.user.user_metadata?.role === 'admin') {
-          router.push('/admin');
-        } else {
-          router.push('/');
-        }
-        router.refresh();
+      if (redirectedFrom) {
+        router.push(redirectedFrom);
+      } else if (res.user?.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/');
       }
+      router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to sign in. Please check your credentials.');
       setIsLoading(false);

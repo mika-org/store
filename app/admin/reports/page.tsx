@@ -79,7 +79,7 @@ export default function AdminReportsPage() {
           grand_total,
           status,
           created_at,
-          customers_shop (
+          users_shop (
             email,
             full_name
           )
@@ -89,10 +89,10 @@ export default function AdminReportsPage() {
 
       if (error) throw error;
 
-      if (dbOrders && dbOrders.length > 0) {
+      if (dbOrders) {
         const salesList = dbOrders.map((o: any) => ({
           invoice: o.invoice_number,
-          customer: `${o.customers_shop?.full_name || 'Guest'} (${o.customers_shop?.email || 'N/A'})`,
+          customer: `${o.users_shop?.full_name || 'Guest'} (${o.users_shop?.email || 'N/A'})`,
           amount: Number(o.grand_total),
           status: o.status,
           date: new Date(o.created_at).toISOString().slice(0, 10)
@@ -111,13 +111,6 @@ export default function AdminReportsPage() {
           averageValue,
           salesList
         });
-      } else {
-        // Fallback to mocks if database query returns empty rows
-        setReport(
-          filter === 'daily' ? MOCK_REPORT_DAILY :
-          filter === 'monthly' ? MOCK_REPORT_MONTHLY :
-          MOCK_REPORT_YEARLY
-        );
       }
     } catch (error) {
       console.error('Failed to load reports from database. Using mocks.', error);

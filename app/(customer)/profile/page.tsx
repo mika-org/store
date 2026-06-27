@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, User, Save, Lock } from 'lucide-react';
+import { updatePassword } from '@/app/actions/auth';
 
 const profileSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -60,16 +61,29 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
+    const getCookie = (name: string) => {
+      if (typeof document === 'undefined') return null;
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
     const fetchProfile = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setEmail(session.user.email || '');
+        const sessionVal = getCookie('user_session');
+        if (sessionVal) {
+          let decoded = decodeURIComponent(sessionVal);
+          if (decoded.startsWith('"') && decoded.endsWith('"')) {
+            decoded = decoded.slice(1, -1);
+          }
+          const session = JSON.parse(decoded);
+          setEmail(session.email || '');
 
           const { data: customer } = await supabase
-            .from('customers_shop')
+            .from('users_shop')
             .select('full_name, phone, address, city, province, postal_code')
-            .eq('id', session.user.id)
+            .eq('id', session.id)
             .single();
 
           if (customer) {
@@ -96,12 +110,25 @@ export default function ProfilePage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    const getCookie = (name: string) => {
+      if (typeof document === 'undefined') return null;
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error('Not logged in.');
+      const sessionVal = getCookie('user_session');
+      if (!sessionVal) throw new Error('Not logged in.');
+      let decoded = decodeURIComponent(sessionVal);
+      if (decoded.startsWith('"') && decoded.endsWith('"')) {
+        decoded = decoded.slice(1, -1);
+      }
+      const session = JSON.parse(decoded);
 
       const { error } = await supabase
-        .from('customers_shop')
+        .from('users_shop')
         .update({
           full_name: data.fullName,
           phone: data.phone,
@@ -110,7 +137,7 @@ export default function ProfilePage() {
           province: data.province,
           postal_code: data.postalCode,
         })
-        .eq('id', session.user.id);
+        .eq('id', session.id);
 
       if (error) throw error;
       setSuccessMsg('Profile updated successfully!');
@@ -127,11 +154,9 @@ export default function ProfilePage() {
     setPwSuccessMsg(null);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: data.newPassword,
-      });
+      const res = await updatePassword(data.newPassword);
+      if (!res.success) throw new Error(res.error || 'Failed to update password.');
 
-      if (error) throw error;
       setPwSuccessMsg('Password updated successfully!');
       resetPasswordForm();
     } catch (error: any) {

@@ -41,7 +41,7 @@ export default async function AdminDashboardPage() {
     // 1. Get counts
     const { count: productsCount } = await supabase.from('products_shop').select('*', { count: 'exact', head: true });
     const { count: ordersCount } = await supabase.from('orders_shop').select('*', { count: 'exact', head: true });
-    const { count: customersCount } = await supabase.from('customers_shop').select('*', { count: 'exact', head: true }).eq('role', 'customer');
+    const { count: customersCount } = await supabase.from('users_shop').select('*', { count: 'exact', head: true }).eq('role', 'customer');
 
     // 2. Sum revenue (Paid, Packed, Shipped, Completed statuses)
     const { data: revenueData } = await supabase
@@ -58,7 +58,7 @@ export default async function AdminDashboardPage() {
         grand_total,
         status,
         created_at,
-        customers_shop (
+        users_shop (
           email
         )
       `)
@@ -83,7 +83,7 @@ export default async function AdminDashboardPage() {
           grand_total: Number(o.grand_total),
           status: o.status,
           created_at: o.created_at,
-          customer_email: o.customers_shop?.email || 'Guest User'
+          customer_email: o.users_shop?.email || 'Guest User'
         }));
       }
     }

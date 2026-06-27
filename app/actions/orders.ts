@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { getSessionUser } from './auth';
 
 interface OrderItemInput {
   productId: string;
@@ -24,17 +25,16 @@ interface PlaceOrderInput {
 
 export async function placeOrder(input: PlaceOrderInput) {
   try {
-    const supabase = await createServerSupabaseClient();
-    
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
+    const user = await getSessionUser();
+    if (!user) {
       return { success: false, error: 'User is not authenticated' };
     }
 
+    const supabase = await createServerSupabaseClient();
+
     // 1. Update customer profile details if needed
     await supabase
-      .from('customers_shop')
+      .from('users_shop')
       .update({
         full_name: input.fullName,
         phone: input.phone,

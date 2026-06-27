@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ShoppingCart, User, Search, Menu, X, LogOut, LayoutDashboard, History } from 'lucide-react';
 import { useCartStore } from '@/store/cart';
-import { createClient } from '@/lib/supabase';
+import { logoutUser } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 
 export default function Navbar() {
@@ -17,7 +17,6 @@ export default function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  const supabase = createClient();
   const cartItemsCount = useCartStore((state) => state.getTotalItems());
 
   useEffect(() => {
@@ -25,23 +24,28 @@ export default function Navbar() {
   }, [searchParams]);
 
   useEffect(() => {
-    // Get initial session
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        setIsAdmin(session.user.user_metadata?.role === 'admin');
-        
-        // Double check database if metadata role is not present
-        if (session.user.user_metadata?.role !== 'admin') {
-          const { data: customer } = await supabase
-            .from('customers_shop')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-          if (customer?.role === 'admin') {
-            setIsAdmin(true);
+    const getCookie = (name: string) => {
+      if (typeof document === 'undefined') return null;
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
+    const checkUser = () => {
+      const sessionVal = getCookie('user_session');
+      if (sessionVal) {
+        try {
+          let decoded = decodeURIComponent(sessionVal);
+          if (decoded.startsWith('"') && decoded.endsWith('"')) {
+            decoded = decoded.slice(1, -1);
           }
+          const session = JSON.parse(decoded);
+          setUser(session);
+          setIsAdmin(session.role === 'admin');
+        } catch (e) {
+          setUser(null);
+          setIsAdmin(false);
         }
       } else {
         setUser(null);
@@ -51,33 +55,7 @@ export default function Navbar() {
     };
 
     checkUser();
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        setIsAdmin(session.user.user_metadata?.role === 'admin');
-        if (session.user.user_metadata?.role !== 'admin') {
-          const { data: customer } = await supabase
-            .from('customers_shop')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-          if (customer?.role === 'admin') {
-            setIsAdmin(true);
-          }
-        }
-      } else {
-        setUser(null);
-        setIsAdmin(false);
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  }, [searchParams]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +68,7 @@ export default function Navbar() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logoutUser();
     router.refresh();
     router.push('/');
     setIsOpen(false);
@@ -150,6 +128,9 @@ export default function Navbar() {
               <>
                 {user ? (
                   <div className="flex items-center space-x-3">
+                    <span className="text-xs font-semibold text-muted-foreground bg-muted/50 px-2.5 py-1.5 rounded-md border border-border">
+                      {user.fullName || user.email}
+                    </span>
                     {isAdmin && (
                       <Link href="/admin">
                         <Button variant="ghost" size="sm" className="gap-1.5">
@@ -235,6 +216,9 @@ export default function Navbar() {
               <>
                 {user ? (
                   <div className="flex flex-col space-y-3">
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground border-b border-border bg-muted/30 rounded-md">
+                      Signed in as: <span className="font-bold text-foreground">{user.fullName || user.email}</span>
+                    </div>
                     {isAdmin && (
                       <Link href="/admin" onClick={() => setIsOpen(false)} className="flex items-center gap-2 hover:text-muted-foreground">
                         <LayoutDashboard className="h-4 w-4" /> Admin Dashboard

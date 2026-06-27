@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
+import { getSessionUser } from './auth';
 
 interface ProductInput {
   category_id: string;
@@ -19,21 +20,10 @@ interface ProductInput {
 
 export async function createProduct(input: ProductInput) {
   try {
+    const user = await getSessionUser();
+    if (!user || user.role !== 'admin') return { success: false, error: 'Unauthorized admin permission required' };
+
     const supabase = await createServerSupabaseClient();
-
-    // Verify admin
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
-
-    const { data: customer } = await supabase
-      .from('customers_shop')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (customer?.role !== 'admin') {
-      return { success: false, error: 'Unauthorized admin permission required' };
-    }
 
     const { error } = await supabase
       .from('products_shop')
@@ -64,20 +54,10 @@ export async function createProduct(input: ProductInput) {
 
 export async function updateProduct(id: string, input: ProductInput) {
   try {
+    const user = await getSessionUser();
+    if (!user || user.role !== 'admin') return { success: false, error: 'Unauthorized' };
+
     const supabase = await createServerSupabaseClient();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
-
-    const { data: customer } = await supabase
-      .from('customers_shop')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (customer?.role !== 'admin') {
-      return { success: false, error: 'Unauthorized' };
-    }
 
     const { error } = await supabase
       .from('products_shop')
@@ -110,20 +90,10 @@ export async function updateProduct(id: string, input: ProductInput) {
 
 export async function deleteProduct(id: string) {
   try {
+    const user = await getSessionUser();
+    if (!user || user.role !== 'admin') return { success: false, error: 'Unauthorized' };
+
     const supabase = await createServerSupabaseClient();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
-
-    const { data: customer } = await supabase
-      .from('customers_shop')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (customer?.role !== 'admin') {
-      return { success: false, error: 'Unauthorized' };
-    }
 
     const { error } = await supabase
       .from('products_shop')

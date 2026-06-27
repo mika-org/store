@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { logoutUser } from '@/app/actions/auth';
 import {
   LayoutDashboard,
   FolderTree,
@@ -50,15 +50,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   
-  const supabase = createClient();
+
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      // Let proxy.ts handle redirection, but load details for display
-      if (session?.user) {
-        setEmail(session.user.email || 'Admin User');
+    const getCookie = (name: string) => {
+      if (typeof document === 'undefined') return null;
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
+    const checkAuth = () => {
+      const sessionVal = getCookie('user_session');
+      if (sessionVal) {
+        try {
+          const session = JSON.parse(decodeURIComponent(sessionVal));
+          setEmail(session.email || 'Admin User');
+        } catch (e) {}
       }
       setLoading(false);
     };
@@ -67,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logoutUser();
     router.refresh();
     router.push('/');
   };

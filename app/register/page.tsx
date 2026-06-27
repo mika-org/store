@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createClient } from '@/lib/supabase';
+import { registerUser } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -32,7 +32,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const supabase = createClient();
+
 
   const {
     register,
@@ -51,41 +51,21 @@ export default function RegisterPage() {
     setSuccessMsg(null);
 
     try {
-      const { data: signUpData, error } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.fullName,
-            role: data.role,
-          },
-          // Redirect URL back to our app
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const res = await registerUser(data);
 
-      if (error) {
-        throw new Error(error.message);
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to register account.');
       }
 
-      if (signUpData.user) {
-        // If email confirmation is enabled, notify user. Otherwise, log them in.
-        // Usually, in development/local Supabase, it creates session automatically or requires confirm
-        if (signUpData.session) {
-          setSuccessMsg('Registration successful! Redirecting...');
-          setTimeout(() => {
-            if (data.role === 'admin') {
-              router.push('/admin');
-            } else {
-              router.push('/');
-            }
-            router.refresh();
-          }, 1500);
+      setSuccessMsg('Registration successful! Redirecting...');
+      setTimeout(() => {
+        if (data.role === 'admin') {
+          router.push('/admin');
         } else {
-          setSuccessMsg('Registration successful! Please check your email to confirm your account.');
-          setIsLoading(false);
+          router.push('/');
         }
-      }
+        router.refresh();
+      }, 1500);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to register account.');
       setIsLoading(false);

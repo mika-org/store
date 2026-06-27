@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase';
 import { placeOrder } from '@/app/actions/orders';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, CreditCard, Landmark, Truck } from 'lucide-react';
+import { Loader2, QrCode, Landmark, Truck } from 'lucide-react';
 
 const checkoutSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -21,7 +21,7 @@ const checkoutSchema = z.object({
   city: z.string().min(2, 'City is required'),
   province: z.string().min(2, 'Province is required'),
   postalCode: z.string().min(3, 'Postal code is required'),
-  paymentMethod: z.enum(['Bank Transfer', 'GoPay', 'Cash on Delivery']),
+  paymentMethod: z.enum(['Bank Transfer', 'QRIS', 'Cash on Delivery']),
 });
 
 type CheckoutInput = z.infer<typeof checkoutSchema>;
@@ -52,14 +52,27 @@ export default function CheckoutPage() {
 
   // Pre-fill profile from database
   useEffect(() => {
+    const getCookie = (name: string) => {
+      if (typeof document === 'undefined') return null;
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
     const fetchProfile = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        const sessionVal = getCookie('user_session');
+        if (sessionVal) {
+          let decoded = decodeURIComponent(sessionVal);
+          if (decoded.startsWith('"') && decoded.endsWith('"')) {
+            decoded = decoded.slice(1, -1);
+          }
+          const session = JSON.parse(decoded);
           const { data: customer } = await supabase
-            .from('customers_shop')
+            .from('users_shop')
             .select('full_name, phone, address, city, province, postal_code')
-            .eq('id', session.user.id)
+            .eq('id', session.id)
             .single();
 
           if (customer) {
@@ -271,16 +284,16 @@ export default function CheckoutPage() {
                 <span className="text-xs font-bold text-center">Bank Transfer</span>
               </label>
 
-              <label className="relative flex flex-col items-center justify-between rounded-lg border border-input bg-background p-4 hover:bg-muted/40 cursor-pointer [&:has([value='GoPay']:checked)]:border-foreground [&:has([value='GoPay']:checked)]:bg-muted/30">
+              <label className="relative flex flex-col items-center justify-between rounded-lg border border-input bg-background p-4 hover:bg-muted/40 cursor-pointer [&:has([value='QRIS']:checked)]:border-foreground [&:has([value='QRIS']:checked)]:bg-muted/30">
                 <input
                   type="radio"
-                  value="GoPay"
+                  value="QRIS"
                   disabled={isLoading}
                   {...register('paymentMethod')}
                   className="sr-only"
                 />
-                <CreditCard className="h-6 w-6 text-muted-foreground mb-2" />
-                <span className="text-xs font-bold text-center">GoPay e-Wallet</span>
+                <QrCode className="h-6 w-6 text-muted-foreground mb-2" />
+                <span className="text-xs font-bold text-center">QRIS (Scan & Pay)</span>
               </label>
 
               <label className="relative flex flex-col items-center justify-between rounded-lg border border-input bg-background p-4 hover:bg-muted/40 cursor-pointer [&:has([value='Cash on Delivery']:checked)]:border-foreground [&:has([value='Cash on Delivery']:checked)]:bg-muted/30">

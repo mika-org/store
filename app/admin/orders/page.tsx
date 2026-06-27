@@ -66,7 +66,7 @@ export default function AdminOrdersPage() {
               name
             )
           ),
-          customers_shop (
+          users_shop (
             email,
             full_name
           ),
@@ -95,7 +95,7 @@ export default function AdminOrdersPage() {
             price: Number(oi.price),
             products: oi.products_shop || { name: 'Deleted Product' }
           })),
-          customers: o.customers_shop || { email: 'Guest', full_name: 'Guest Customer' },
+          customers: o.users_shop || { email: 'Guest', full_name: 'Guest Customer' },
           payments: o.payments_shop ? {
             payment_method: o.payments_shop.payment_method,
             payment_proof: o.payments_shop.payment_proof,

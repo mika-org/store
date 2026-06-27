@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { uploadPaymentProof } from '@/app/actions/payments';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, CheckCircle2, ChevronDown, ChevronUp, AlertCircle, UploadCloud, Landmark } from 'lucide-react';
+import { Loader2, CheckCircle2, ChevronDown, ChevronUp, AlertCircle, UploadCloud, Landmark, QrCode } from 'lucide-react';
 
 interface OrderItem {
   id: string;
@@ -51,9 +51,22 @@ function OrdersPageContent() {
   const successInvoice = searchParams.get('invoice') || '';
 
   const fetchOrders = async () => {
+    const getCookie = (name: string) => {
+      if (typeof document === 'undefined') return null;
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      const sessionVal = getCookie('user_session');
+      if (sessionVal) {
+        let decoded = decodeURIComponent(sessionVal);
+        if (decoded.startsWith('"') && decoded.endsWith('"')) {
+          decoded = decoded.slice(1, -1);
+        }
+        const session = JSON.parse(decoded);
         const { data: dbOrders, error } = await supabase
           .from('orders_shop')
           .select(`
@@ -80,7 +93,7 @@ function OrdersPageContent() {
               status
             )
           `)
-          .eq('customer_id', session.user.id)
+          .eq('customer_id', session.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -298,16 +311,38 @@ function OrdersPageContent() {
                     </div>
 
                     {/* Payment Verification / Upload Proof Section */}
-                    {needsVerification && (
+                     {needsVerification && (
                       <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-4">
                         <div className="flex items-start gap-3">
-                          <Landmark className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-xs space-y-1">
+                          {order.payments?.payment_method === 'QRIS' ? (
+                            <QrCode className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <Landmark className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          )}
+                          <div className="text-xs space-y-1 w-full">
                             <span className="font-bold block text-yellow-700 dark:text-yellow-400">Payment Verification Required</span>
-                            <span className="text-muted-foreground">
-                              Please transfer <span className="font-bold text-foreground">{formatCurrency(order.grand_total)}</span> to 
-                              BCA Bank Account <span className="font-bold text-foreground">123-456-7890</span> (ATELIER STORE).
-                            </span>
+                            {order.payments?.payment_method === 'QRIS' ? (
+                              <div className="space-y-3">
+                                <span className="text-muted-foreground">
+                                  Please scan the QRIS code below and pay <span className="font-bold text-foreground">{formatCurrency(order.grand_total)}</span>:
+                                </span>
+                                <div className="border border-border p-2 bg-white rounded-lg w-40 h-40 flex items-center justify-center">
+                                  <img 
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=ATELIER-STORE-QRIS-INVOICE-${order.invoice_number}`} 
+                                    alt="QRIS QR Code" 
+                                    className="w-36 h-36 object-contain"
+                                  />
+                                </div>
+                                <span className="block font-semibold text-[10px] text-muted-foreground">
+                                  ATELIER STORE - QRIS MERCHANT
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                Please transfer <span className="font-bold text-foreground">{formatCurrency(order.grand_total)}</span> to 
+                                BCA Bank Account <span className="font-bold text-foreground">123-456-7890</span> (ATELIER STORE).
+                              </span>
+                            )}
                           </div>
                         </div>
 

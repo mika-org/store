@@ -1,16 +1,16 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { getSessionUser } from './auth';
 
 export async function uploadPaymentProof(orderId: string, proofUrl: string) {
   try {
-    const supabase = await createServerSupabaseClient();
-    
-    // Get current user session
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
+    const user = await getSessionUser();
+    if (!user) {
       return { success: false, error: 'User is not authenticated' };
     }
+
+    const supabase = await createServerSupabaseClient();
 
     // Verify order owner
     const { data: order } = await supabase
