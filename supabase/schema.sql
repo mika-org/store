@@ -108,15 +108,15 @@ alter table public.payments_shop enable row level security;
 
 -- Create Security Policies (Security is validated at Next.js server-side layer)
 
-create policy "Allow all access categories" on public.categories_shop for all using (true);
-create policy "Allow all access products" on public.products_shop for all using (true);
-create policy "Allow all access product_images" on public.product_images_shop for all using (true);
-create policy "Allow all access users" on public.users_shop for all using (true);
-create policy "Allow all access carts" on public.carts_shop for all using (true);
-create policy "Allow all access cart_items" on public.cart_items_shop for all using (true);
-create policy "Allow all access orders" on public.orders_shop for all using (true);
-create policy "Allow all access order_items" on public.order_items_shop for all using (true);
-create policy "Allow all access payments" on public.payments_shop for all using (true);
+create policy "Allow all access categories" on public.categories_shop for all using (true) with check (true);
+create policy "Allow all access products" on public.products_shop for all using (true) with check (true);
+create policy "Allow all access product_images" on public.product_images_shop for all using (true) with check (true);
+create policy "Allow all access users" on public.users_shop for all using (true) with check (true);
+create policy "Allow all access carts" on public.carts_shop for all using (true) with check (true);
+create policy "Allow all access cart_items" on public.cart_items_shop for all using (true) with check (true);
+create policy "Allow all access orders" on public.orders_shop for all using (true) with check (true);
+create policy "Allow all access order_items" on public.order_items_shop for all using (true) with check (true);
+create policy "Allow all access payments" on public.payments_shop for all using (true) with check (true);
 
 -- Create trigger to automatically initialize an empty cart for a new user in users_shop
 create or replace function public.handle_new_shop_user()

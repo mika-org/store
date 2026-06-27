@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export default async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   const pathname = request.nextUrl.pathname;
 
@@ -20,8 +20,6 @@ export default async function proxy(request: NextRequest) {
       // Ignored
     }
   }
-
-  console.log(`[Middleware] Path: ${pathname}, HasCookie: ${!!sessionCookie}, UserRole: ${user?.role || 'None'}`);
 
   // 1. Admin route protection
   if (pathname.startsWith('/admin')) {
